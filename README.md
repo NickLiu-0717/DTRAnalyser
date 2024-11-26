@@ -24,7 +24,7 @@ Personal project to analyze daily training report(DTR) for imporving training dr
   - **Training Purpose**: Each operation with an odor source should have a specific training purpose to teach the dog. Providing sufficient training for each type of purpose is crucial to maintaining consistent improment in the dogs.
 
 ### 3. What functionalities do we expect from this project?
-  - Analyze that if the duty time or duty duration is too consistent, recommandation for changes.
+  - Analyze whether the duty time or duty duration is too consistent, draw a distribution chart.
   - Analyze the usage frequency of each type of odor source, indicate how many times an odor source has been used over a specific period(Draw a statistical chart). Track changes in the usage of different amounts of each odor source(draw a trend graph).
   - Calculate the reward ratio over a specific period and analyze whether it correlates with the dog's performance.
   - Analyze how many types of cargo have been trained and determine whether the training frequency for each type is optimal.
