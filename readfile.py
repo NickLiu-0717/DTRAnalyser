@@ -13,10 +13,9 @@ def load_data(file_path):
     doc = load(file_path)
     return doc
 
-def get_cell_color(cell):
+def get_cell_color(cell, style_elem):
     cell_style = cell.getAttribute("stylename")
     if cell_style:
-        style_elem = doc.automaticstyles.getElementsByType(Style)
         for style in style_elem:
             if style.getAttribute("name") == cell_style:
                 props = style.getElementsByType(TableCellProperties)
@@ -27,7 +26,7 @@ def get_cell_color(cell):
 
 def extract_text_from_element(element, layer=0):
     """
-    遞迴提取節點內的所有文本內容。
+    遞迴提取節點內的所有文本內容。   layer要修改 要提取出日期
     """
     text = ""
     for child in element.childNodes:
@@ -40,15 +39,14 @@ def extract_text_from_element(element, layer=0):
     return text
 
 def get_cell_content_and_annotation(cell):
-    content = ""
+    cell_content = ""
     annotation_text = ""
     for child in cell.childNodes:
-        print(child.tagName)
         if child.tagName == "text:p":  # 確保是文本段落
-            content += "".join(text_node.data for text_node in child.childNodes if text_node.nodeType == 3)
+            cell_content += "".join(text_node.data for text_node in child.childNodes if text_node.nodeType == 3)
         if child.tagName == "office:annotation":
             annotation_text = extract_text_from_element(child)
-    return (content, annotation_text)
+    return cell_content, annotation_text
 
 def annotation_segment_process(text):
     pattern_start = r"^(Run\d+)(\d+\.)"
@@ -71,63 +69,34 @@ def annotation_segment_process(text):
 
     return segments
 
-def expand_cells(row):
-    """
-    展開行內的所有儲存格，考慮 table:number-columns-repeated 屬性，使用 tagName 判斷節點類型。
-    """
-    expanded_cells = []
-    cell_values = {}
-    for cell in row.childNodes:
-        # 如果 cell 是元組，取第一個元素
-        if isinstance(cell, tuple):
-            cell = cell[0]
-
-        # 確認 cell 是否有 tagName 和 getAttribute 方法
-        if hasattr(cell, "tagName") and hasattr(cell, "getAttribute"):
-            if cell.tagName in ["table:table-cell", "table:covered-table-cell"]:
-                # 防禦性處理重複屬性
-                try:
-                    repeat = cell.getAttribute("table:number-columns-repeated")
-                    repeat = int(repeat) if repeat else 1
-                except (ValueError, TypeError):
-                    repeat = 1
-                expanded_cells.extend([cell] * repeat)
-                for _ in range(repeat):
-                    expanded_cells.append(cell)
-                    # 如果有內容，記錄索引和內容
-                    if hasattr(cell, "textContent") and cell.textContent and cell.textContent.strip():
-                        cell_values[len(expanded_cells) - 1] = cell.textContent.strip()
-            else:
-                print(f"Skipped unsupported node: {cell.tagName}")
-        else:
-            print(f"Skipped invalid node: {cell}")
-    return cell_values, expanded_cells
-
+def print_cell_and_annotation(cell):
+    (content, annotation_text) = get_cell_content_and_annotation(cell)
+    print(f"Cell Content: {content}")
+    segs = annotation_segment_process(annotation_text)
+    print("Annotation Content:\n")
+    for segment in segs:
+        print(f"- {segment}")
 
 
 def main():
     doc = load_data("2023-3months-DTR.ods")
+    style_elem = doc.automaticstyles.getElementsByType(Style)
     dtr_custy = doc.spreadsheet.childNodes[0]
-    row = dtr_custy.getElementsByType(TableRow)[145]
-    cell_values, expanded_cells = expand_cells(row)
-    cell = expanded_cells[5]
-        # 提取儲存格內容
-
-    # print(row.toXml(0, sys.stdout))
-    # content = ""
-    # count_child = []
-    # for child in cell.childNodes:
-    #     if child.tagName == "text:p":  # 確保是文本段落
-    #         content += "".join(text_node.data for text_node in child.childNodes if text_node.nodeType == 3)
-    #     if child.tagName == "office:annotation":
-    #         annotation_text, count_child = extract_text_from_element(child)
-
-    # print(count_child)
-    (content, annotation_text) = get_cell_content_and_annotation(cell)
-    print(f"Cell Content: {content}")
-    segs = annotation_segment_process(annotation_text)
-    for segment in segs:
-        print(f"- {segment}")
+    rows = dtr_custy.getElementsByType(TableRow)
+    # cell_values, expanded_cells = expand_cells(row)
+    index = 0
+    cell_list = []
+    annotation_list = []
+    for cell in rows[144].getElementsByType(TableCell):
+        cell_content, annotation_content = get_cell_content_and_annotation(cell)
+        if cell_content:
+            cell_list.append((cell_content, index))
+        if annotation_content:
+            annotation_list.append((annotation_content, index))
+        index += 1
+    for item in cell_list:
+        print(item)
+    for item in annotation_list:
+        print(item)
     
-    
-main()
+# main()
