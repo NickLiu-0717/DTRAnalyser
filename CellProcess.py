@@ -1,13 +1,10 @@
-import sys
 import re
 from odf.opendocument import load
-from odf.table import Table, TableRow, TableCell
-from odf.text import P
-from odf.office import Annotation
-from odf.style import Style, TableCellProperties
-from odf.element import Element  # 通用解析元素
+from odf.style import TableCellProperties
+# from odf.text import P
+# from odf.office import Annotation
 
-green = "#66cc00"
+
 
 def load_data(file_path):
     doc = load(file_path)
@@ -77,26 +74,12 @@ def print_cell_and_annotation(cell):
     for segment in segs:
         print(f"- {segment}")
 
-
-def main():
-    doc = load_data("2023-3months-DTR.ods")
-    style_elem = doc.automaticstyles.getElementsByType(Style)
-    dtr_custy = doc.spreadsheet.childNodes[0]
-    rows = dtr_custy.getElementsByType(TableRow)
-    # cell_values, expanded_cells = expand_cells(row)
+def column_letter_to_index(column_letter):
+    """
+    將英文字母列標記 (A, B, ..., Z, AA, AB, ...) 轉換為列索引 (1, 2, ..., 26, 27, ...)
+    """
+    column_letter = column_letter.upper()  # 確保是大寫
     index = 0
-    cell_list = []
-    annotation_list = []
-    for cell in rows[144].getElementsByType(TableCell):
-        cell_content, annotation_content = get_cell_content_and_annotation(cell)
-        if cell_content:
-            cell_list.append((cell_content, index))
-        if annotation_content:
-            annotation_list.append((annotation_content, index))
-        index += 1
-    for item in cell_list:
-        print(item)
-    for item in annotation_list:
-        print(item)
-    
-# main()
+    for char in column_letter:
+        index = index * 26 + (ord(char) - ord('A') + 1)
+    return index - 1
