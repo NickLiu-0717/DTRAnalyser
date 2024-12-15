@@ -5,7 +5,9 @@ from odf.style import Style
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from analyzer import Analyzer
+from analyzer import Analyzer, CustomAskWindow
+import tkinter as tk
+from tkinter import messagebox
 
 def column_letter_to_index(column_letter):
     """
@@ -17,26 +19,59 @@ def column_letter_to_index(column_letter):
         index = index * 26 + (ord(char) - ord('A') + 1)
     return index - 1
 
+def center_window_on_primary(window, width, height, offset="left"):
+    """
+    讓視窗在主螢幕的左側或右側顯示，避免跨螢幕居中。
+    
+    :param window: tkinter 視窗物件
+    :param width: 視窗寬度
+    :param height: 視窗高度
+    :param offset: 偏移方向 ("left" 或 "right")
+    """
+    screen_width = window.winfo_screenwidth()  # 主螢幕寬度
+    screen_height = window.winfo_screenheight()  # 主螢幕高度
+    
+    # 根據 offset 決定視窗的 X 座標
+    if offset == "left":
+        x = screen_width // 4 - width // 2  # 螢幕左側 1/4 處
+    elif offset == "right":
+        x = screen_width * 3 // 4 - width // 2  # 螢幕右側 3/4 處
+    else:
+        x = (screen_width // 2) - (width // 2)  # 預設居中
+    
+    y = (screen_height // 2) - (height // 2)  # 垂直居中
+    
+    window.geometry(f"{width}x{height}+{x}+{y}")  # 設定視窗大小和位置
+    window.update()
+
 def main():
     CACHE_FILE = "cached_ods.pkl"
     # ODS_FILE = "2023-3months-DTR.ods"
     ODS_FILE = "2023-oneandhalfyear-DTR.ods"
-    # expand_row_table = load_data(CACHE_FILE, ODS_FILE)                                           ## load the document which is processed to expand the spanned rows
-    # # style_element = doc.styles.getElementsByType(Style)                                        ## Maybe no need for color, I can simply search for * or ●
-    # expand_full_table = expand_column_repeated(expand_row_table)                                 ## full table expanded from spanned rows and spanned/repeated columns
-    # duty_dates = expand_full_table[0][6:]                                                        ## dates for each day without get rid of vacations
-    # duty_times = expand_full_table[2][6:]                                                        ## runs for each day without get rid of vacations
-    # content_table = expand_full_table[84:654]                                                    ## content table is a table only contains contents of runs
-    # # get_cell_from_index(145 - 85, column_letter_to_index("E"), content_table)                  ## print specific cell's content for content table
-    # # get_cell_from_index(2, column_letter_to_index("F"), expand_row_table)                      ## print specific cell for different table
-    # indices = get_content_index(content_table)                                                   ## indices of the cells in the whole table that has *, ●, dnf, or fr
-    # warehouse = get_warehouse_statistic(content_table)                                           ## runs at each warehouse
-    # plot_warehouse(warehouse)                                                                  ## plot the statistical graph of the runs for each warehouse
-    # get_average_runs_for_dates("2022/6/6", "2022/8/31", duty_dates, duty_times)                  ## get the average runs between date1 and date2
-    dtr_analyzer = Analyzer(CACHE_FILE, ODS_FILE)
-    dtr_analyzer.get_average_runs_for_dates("2023/10/11", "2024/1/10")  
-    dtr_analyzer.plot_warehouse()
-    dtr_analyzer.plot_odor_trends()
+    root = tk.Tk()
+    root.withdraw()
+    # center_window_on_primary(root, 600, 200, offset="left")
+    # response = messagebox.askyesno("Start Application", "Do you want to calculate average runs?")
+    custom_ask = CustomAskWindow(root, "Start Application", "Do you want to calculate average runs?", position="left")
+    if custom_ask.result:  # 如果選擇「是」
+        root.deiconify()
+        center_window_on_primary(root, 600, 200, offset="left")
+        dtr_analyzer = Analyzer(CACHE_FILE, ODS_FILE, root)
+        root.update()  # 更新視窗內容
+        root.geometry("600x200")  # 自動調整視窗大小
+        root.mainloop()
+        # dtr_analyzer.plot_warehouse()
+        # dtr_analyzer.plot_odor_trends()
+    else:  # 如果選擇「否」
+        root.destroy()
+        dtr_analyzer = Analyzer(CACHE_FILE, ODS_FILE, root=None)
+        # dtr_analyzer.plot_warehouse()
+        # dtr_analyzer.plot_odor_trends()
+
+    
+    # dtr_analyzer.get_average_runs_for_dates("2023/10/11", "2024/1/10")  
+    # dtr_analyzer.plot_warehouse()
+    # dtr_analyzer.plot_odor_trends()
     
 
 

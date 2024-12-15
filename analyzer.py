@@ -6,9 +6,76 @@ import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+import tkinter as tk
+from tkinter import messagebox
+
+class CustomAskWindow(tk.Toplevel):
+    def __init__(self, parent, title, message, position="left"):
+        super().__init__(parent)
+        self.title(title)
+        self.geometry("400x150")  # 設定自定義視窗的大小
+
+        # 設定視窗位置
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        if position == "left":
+            x = screen_width // 4 - 150  # 螢幕左側
+        elif position == "right":
+            x = screen_width * 3 // 4 - 150  # 螢幕右側
+        else:
+            x = (screen_width // 2) - 150  # 螢幕中間
+        y = (screen_height // 2) - 75  # 垂直居中
+
+        self.geometry(f"+{x}+{y}")  # 設置視窗位置
+        self.resizable(False, False)  # 禁止調整大小
+
+        # 問詢訊息
+        tk.Label(self, text=message, font=("Arial", 12), wraplength=280).pack(pady=20)
+
+        # Yes 和 No 按鈕
+        self.result = None
+        button_frame = tk.Frame(self)
+        button_frame.pack()
+        tk.Button(button_frame, text="Yes", width=10, command=self.on_yes).pack(side="left", padx=10)
+        tk.Button(button_frame, text="No", width=10, command=self.on_no).pack(side="left", padx=10)
+
+        # 設置視窗為模態（等待用戶操作）
+        self.grab_set()
+        self.wait_window(self)
+
+    def on_yes(self):
+        self.result = True  # 設定返回值為 True
+        self.destroy()
+
+    def on_no(self):
+        self.result = False  # 設定返回值為 False
+        self.destroy()
 
 class Analyzer:
-    def __init__(self, CACHE_FILE, ODS_FILE):
+    def __init__(self, CACHE_FILE, ODS_FILE, root):
+        if root != None:
+            self.root = root
+            self.root.title("Average Runs Calculator")
+            
+            self.root.pack_propagate(False)
+            frame = tk.Frame(root)  # 新增框架，讓內容更緊湊
+            frame.pack(padx=10, pady=10)  # 設置內外邊距，讓視窗看起來更美觀
+            
+            
+            tk.Label(frame, text="Enter Start Date (YYYY-MM-DD):").grid(row=0, column=0, padx=10, pady=5)
+            self.date1_entry = tk.Entry(frame, width=20)
+            self.date1_entry.grid(row=0, column=1, padx=10, pady=5)
+            
+            tk.Label(frame, text="Enter End Date (YYYY-MM-DD):").grid(row=1, column=0, padx=10, pady=5)
+            self.date2_entry = tk.Entry(frame, width=20)
+            self.date2_entry.grid(row=1, column=1, padx=10, pady=5)
+            
+            self.calculate_button = tk.Button(frame, text="Calculate Average", command=self.calculate_average)
+            self.calculate_button.grid(row=2, column=0, columnspan=2, pady=10)
+            
+            self.result_label = tk.Label(frame, text="Result will be displayed here.", fg="blue")
+            self.result_label.grid(row=3, column=0, columnspan=2, pady=10)
+        
         self.cach = CACHE_FILE
         self.ods = ODS_FILE
         self.expanded_table = []                                                 ## initial table for expanding by spanned row
@@ -218,8 +285,14 @@ class Analyzer:
         if date1 in str_duty_date and date2 in str_duty_date:
             index1 = str_duty_date.index(date1)
             index2 = str_duty_date.index(date2)
-        else:
-            print("Input dates are not in the list")
+            if index1 > index2:
+                return "ERROR: The Start Date Should be Before the End Date."
+        elif date1 not in str_duty_date and date2 not in str_duty_date:
+            return "ERROR: Both Dates are not Valid."
+        elif date1 not in str_duty_date:
+            return "ERROR: Start Date is not Valid."
+        elif date2 not in str_duty_date:
+            return "ERROR: End Date is not Valid."
         runs_dict = self.__get_runs()
         key = index1
         count_days = 0
@@ -231,8 +304,24 @@ class Analyzer:
                 key += 1
             else:
                 key += 1
-        print(f"The average runs between {date1} and {date2} is {round(sum_runs / count_days, 2)}")
+        if count_days > 0:
+            average_runs = round(sum_runs / count_days, 2)
+            return f"The average runs between {date1} and {date2} is {average_runs}"
+        else:
+            return "No valid data found for the given dates."
+
+    def calculate_average(self):
+        date1 = self.date1_entry.get()
+        date2 = self.date2_entry.get()
         
+        # 驗證輸入日期並計算結果
+        if not date1 or not date2:
+            messagebox.showerror("Input Error", "Please enter both dates.")
+            return
+        
+        result = self.get_average_runs_for_dates(date1, date2)
+        self.result_label.config(text=result)
+       
     def __get_train_odor_trend(self):
         for row_index, col_list in self.indices["train"].items():
             for col_index in col_list:
