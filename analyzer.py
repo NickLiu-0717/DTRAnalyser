@@ -1,13 +1,11 @@
 from odf.opendocument import load
 from odf.table import Table, TableRow, TableCell
 from odf.style import TableCellProperties
-import cloudpickle, re, sys
-from useful_func import *
 import pandas as pd
+import matplotlib.colors as mcolors
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-
-sys.setrecursionlimit(4000)
 
 class Analyzer:
     def __init__(self, CACHE_FILE, ODS_FILE):
@@ -16,18 +14,18 @@ class Analyzer:
         self.expanded_table = []                                                 ## initial table for expanding by spanned row
         self.full_table = []                                                     ## initial table for expanding the whole table
         self.content_table = []                                                  ## initial tabel for only content we want
-        self.indices = {"train": {}, "OP": {}, "DNF": {}, "FR": {}}              ## indices for expected cell contents
+        self.indices = {"train": {}, "OP": {}, "DNF": {}, "FR": {}}              ## dictionary to store indices for expected cell contents
+        self.odors_amounts = {"C": [], "A": [], "K": [], "H": [], "M": []}        ## dictionary to store amount of the odor usage
+        self.odors_dates = {"C": [], "A": [], "K": [], "H": [], "M": []}         ## dictionary to store date of the odor usage
         self.warehouse = {}                                                      ## initial dictionary for warehouses
         self.flattened_data = []                                                 ## initial blank list for plot the warehouse graph
         self.duty_dates = []                                                     ## initial blank list for duty dates  
         self.duty_times = []                                                     ## initial blank list for duty times
         self.__load_data()                                                       ## load the data and get the expanded table
         self.__expand_column_repeated()                                          ## get the full table 
-    
-    def run_all_step(self):
         self.__get_content_index()
         self.__get_warehouse_statistic()
-        self.plot_warehouse()
+        self.__get_train_odor_trend()   
     
     def get_cell_from_index(self, row, col):
         print(f"Index:{(row, col)}, Cell Content:{str(self.full_table[row][col])}")
@@ -155,19 +153,22 @@ class Analyzer:
                 if str(row[4]) != "0 / 0 = 0":
                     self.warehouse[str(row[1])] = {}
                     self.warehouse[str(row[1])][str(row[2])] = {}
-                    num = int(str(row[4])[0])
+                    nums = str(row[4]).split("/")
+                    num = int(nums[0])
                     self.warehouse[str(row[1])][str(row[2])][str(row[3])] = num
             
             else:
                 if str(row[2]) not in self.warehouse[str(row[1])]:
                     if str(row[4]) != "0 / 0 = 0":
                         self.warehouse[str(row[1])][str(row[2])] = {}
-                        num = int(str(row[4])[0])
+                        nums = str(row[4]).split("/")
+                        num = int(nums[0])
                         self.warehouse[str(row[1])][str(row[2])][str(row[3])] = num
                 else:
                     if str(row[3]) not in self.warehouse[str(row[1])][str(row[2])]:
                         if row[4] != "0 / 0 = 0":
-                            num = int(str(row[4])[0])
+                            nums = str(row[4]).split("/")
+                            num = int(nums[0])
                             self.warehouse[str(row[1])][str(row[2])][str(row[3])] = num
     
     def __flatten_dict(self, d, keys=[]):   
@@ -186,13 +187,18 @@ class Analyzer:
         summary = df.groupby(["Warehouse", "Subcategory"])["Value"].sum().unstack()
         summary["Total"] = summary.sum(axis=1)  # Add a 'Total' column for sorting
         summary = summary.sort_values("Total", ascending=False).drop(columns=["Total"])  # Sort and drop 'Total'
+        
+        unique_colors = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
+        unique_colors = unique_colors[:len(summary.columns)]  # 確保顏色數量足夠
         # Plot
-        summary.plot(kind="bar", stacked=True, figsize=(10, 6))
+        # summary.plot(kind="bar", stacked=True, figsize=(10, 6))
+        ax = summary.plot(kind="bar", stacked=True, figsize=(10, 6), color=unique_colors)
         plt.title("Total Imports and Exports by Category")
         plt.ylabel("Value")
         plt.xlabel("Warehouse")
-        plt.xticks(fontproperties=font_prop)
+        plt.xticks(fontproperties=font_prop, rotation=0)
         plt.legend(title="Type", prop=font_prop)
+        plt.tight_layout()
         plt.show()
         
     def __get_runs(self):
@@ -226,4 +232,59 @@ class Analyzer:
             else:
                 key += 1
         print(f"The average runs between {date1} and {date2} is {round(sum_runs / count_days, 2)}")
+        
+    def __get_train_odor_trend(self):
+        for row_index, col_list in self.indices["train"].items():
+            for col_index in col_list:
+                cell = self.content_table[row_index + 1][col_index]
+                odor_list = str(cell).split()
+                if odor_list:
+                    if odor_list[0] == "H":
+                        split_amount = odor_list[-1].split("*")
+                        odor_list[-1] = str(int(split_amount[0]) * int(split_amount[1]))
+                if len(odor_list) > 2:
+                    if odor_list[0] in self.odors_amounts:
+                        self.odors_amounts[odor_list[0]].append(int(odor_list[-1]))
+                        self.odors_dates[odor_list[0]].append(str(self.duty_dates[col_index - 6]))
+            
+    def plot_odor_trends(self):
+        num_keys = len(self.odors_amounts)
+        # 創建多個子圖：1列多行
+        fig, axes = plt.subplots(nrows=num_keys, ncols=1, figsize=(6, 2 * num_keys), sharex=True)
+
+        # 如果只有一個 key，axes 不是列表，需要轉換
+        if num_keys == 1:
+            axes = [axes]
+
+        # 定義顏色列表，使用 TABLEAU 顏色或 CSS4 顏色
+        color_list = list(mcolors.TABLEAU_COLORS.values())
+
+        for ax, (key, values), color in zip(axes, self.odors_amounts.items(), color_list):
+            dates = self.odors_dates[key]
+
+            # 檢查兩個列表是否對應
+            if len(values) != len(dates):
+                print(f"Key '{key}' 的數據和日期長度不匹配，跳過繪圖。")
+                continue
+
+            # 創建 DataFrame 並排序
+            df = pd.DataFrame({'Date': pd.to_datetime(dates), 'Value': values})
+            df = df.sort_values(by='Date')  # 按日期排序
+
+            # 繪製子圖，使用不同的顏色
+            ax.plot(df['Date'], df['Value'], marker='o', label=key, color=color)
+            ax.set_title(f"Trend for {key}")
+            ax.set_ylabel("Value")
+            ax.grid(True)
+            ax.legend()
+
+            # 設置 X 軸的日期格式
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=15))  # 自動調整刻度
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))  # 日期格式
+
+        # 統一 X 軸格式
+        plt.xlabel("Date")
+        plt.xticks(rotation=45)
+        plt.tight_layout()  # 自動調整佈局
+        plt.show()
  

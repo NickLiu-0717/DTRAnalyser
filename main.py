@@ -1,43 +1,26 @@
-from ExpandTable import *
-from CellProcess import *
-from GrabContent import *
+# from ExpandTable import *
+# from CellProcess import *
+# from GrabContent import *
 from odf.style import Style
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from analyzer import *
-from useful_func import *
-# flattened_data = []
+from analyzer import Analyzer
 
-# def flatten_dict(d, keys=[]):   
-#     for k, v in d.items():
-#         if isinstance(v, dict):
-#             flatten_dict(v, keys + [k])
-#         else:
-#             flattened_data.append(keys + [k, v])
-
-# def plot_warehouse(warehouse):
-#     font_path = "msjhl.ttc"
-#     font_prop = fm.FontProperties(fname=font_path)
-#     flatten_dict(warehouse)
-#     columns = ["Warehouse", "Subcategory", "Detail", "Value"]
-#     df = pd.DataFrame(flattened_data, columns=columns)
-#     summary = df.groupby(["Warehouse", "Subcategory"])["Value"].sum().unstack()
-#     summary["Total"] = summary.sum(axis=1)  # Add a 'Total' column for sorting
-#     summary = summary.sort_values("Total", ascending=False).drop(columns=["Total"])  # Sort and drop 'Total'
-#     # Plot
-#     summary.plot(kind="bar", stacked=True, figsize=(10, 6))
-#     plt.title("Total Imports and Exports by Category")
-#     plt.ylabel("Value")
-#     plt.xlabel("Warehouse")
-#     plt.xticks(fontproperties=font_prop)
-#     plt.legend(title="Type", prop=font_prop)
-#     plt.show()
-
+def column_letter_to_index(column_letter):
+    """
+    將英文字母列標記 (A, B, ..., Z, AA, AB, ...) 轉換為列索引 (1, 2, ..., 26, 27, ...)
+    """
+    column_letter = column_letter.upper()  # 確保是大寫
+    index = 0
+    for char in column_letter:
+        index = index * 26 + (ord(char) - ord('A') + 1)
+    return index - 1
 
 def main():
     CACHE_FILE = "cached_ods.pkl"
-    ODS_FILE = "2023-3months-DTR.ods"
+    # ODS_FILE = "2023-3months-DTR.ods"
+    ODS_FILE = "2023-oneandhalfyear-DTR.ods"
     # expand_row_table = load_data(CACHE_FILE, ODS_FILE)                                           ## load the document which is processed to expand the spanned rows
     # # style_element = doc.styles.getElementsByType(Style)                                        ## Maybe no need for color, I can simply search for * or ●
     # expand_full_table = expand_column_repeated(expand_row_table)                                 ## full table expanded from spanned rows and spanned/repeated columns
@@ -51,8 +34,9 @@ def main():
     # plot_warehouse(warehouse)                                                                  ## plot the statistical graph of the runs for each warehouse
     # get_average_runs_for_dates("2022/6/6", "2022/8/31", duty_dates, duty_times)                  ## get the average runs between date1 and date2
     dtr_analyzer = Analyzer(CACHE_FILE, ODS_FILE)
-    dtr_analyzer.run_all_step()  
-    dtr_analyzer.get_average_runs_for_dates("2022/6/6", "2022/8/31")  
+    dtr_analyzer.get_average_runs_for_dates("2023/10/11", "2024/1/10")  
+    dtr_analyzer.plot_warehouse()
+    dtr_analyzer.plot_odor_trends()
     
 
 
