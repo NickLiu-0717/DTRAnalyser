@@ -1,14 +1,27 @@
 import re
 from odf.opendocument import load
 from odf.style import TableCellProperties
+import cloudpickle
+from ExpandTable import *
+import sys
+sys.setrecursionlimit(4000)
 # from odf.text import P
 # from odf.office import Annotation
 
-
-
-def load_data(file_path):
-    doc = load(file_path)
-    return doc
+def load_data(CACHE_FILE, ODS_FILE):
+    try:
+        # Try to load the cached data
+        with open(CACHE_FILE, "rb") as f:
+            print("Loading data from cache...")
+            return cloudpickle.load(f)
+    except FileNotFoundError:
+        # If cache doesn't exist, load from the ODS file
+        print("Loading data from ODS file...")
+        doc = load(ODS_FILE)
+        expanded_table = expand_row_merged_cells(doc)
+        with open(CACHE_FILE, "wb") as f:
+            cloudpickle.dump(expanded_table, f)
+        return expanded_table
 
 def get_cell_color(cell, style_elem):
     cell_style = cell.getAttribute("stylename")
@@ -44,6 +57,10 @@ def get_cell_content_and_annotation(cell):
         if child.tagName == "office:annotation":
             annotation_text = extract_text_from_element(child)
     return cell_content, annotation_text
+
+def print_cell_content(c, a):
+    print(f"Cell content:{c}")
+    print(f"Annotation content:{a}")
 
 def annotation_segment_process(text):
     pattern_start = r"^(Run\d+)(\d+\.)"

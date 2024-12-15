@@ -64,7 +64,7 @@ def expand_column_repeated(table):
             try:
                 col_span = cell.getAttribute("numbercolumnsspanned")
                 col_span = int(col_span) if col_span is not None else 1
-            
+                
                 col_repeat = cell.getAttribute("numbercolumnsrepeated")
                 col_repeat = int(col_repeat) if col_repeat is not None else 1
             except AttributeError as e:
@@ -76,10 +76,7 @@ def expand_column_repeated(table):
                 continue
             if col_repeat < 200:
                 for _ in range(col_repeat):
-                    if col_repeat == 1:
-                        expanded_table[row].append(cell)
-                    else:
-                        expanded_table[row].append(TableCell())
+                    expanded_table[row].append(cell)
     return expanded_table       
                 
 def get_row_value(row, table):
