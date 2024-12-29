@@ -9,8 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import tkinter as tk
 from tkinter import messagebox
-# from transformers import pipeline
-# import tensorflow as tf
+
 
 class CustomAskWindow(tk.Toplevel):
     def __init__(self, parent, title, message, position="left"):
@@ -414,28 +413,13 @@ class Analyzer:
                     match = re.match(pattern_start, seg)
                     if match:
                         self.train_purpose.append(seg[match.end():])
-                        
-    def classify_purpose(self):
-        self.result = {}
-        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-        threshold = 0.3
-        for pur in self.train_purpose:
-            result = classifier(pur, candidate_labels = self.purposes_categories)
-            top_score = result["scores"][0]
-            top_label = result["labels"][0] 
-            if top_score < threshold:
-                top_label = "others"
-            if top_label in self.result:
-                self.result[top_label] += 1
-            else:
-                self.result[top_label] = 1
-        return self.result          
+                                  
 
-if __name__ == "__main__":
-    # ODS_FILE = "2023-3months-DTR.ods"
-    # ODS_FILE = "2023-oneandhalfyear-DTR.ods"
-    # dtr_analyzer = Analyzer(ODS_FILE, root=None)
-    # result = dtr_analyzer.classify_purpose()
-    # print(type(result))
-    print("GPU Available: ", tf.config.list_physical_devices('GPU'))
+# if __name__ == "__main__":
+#     # ODS_FILE = "2023-3months-DTR.ods"
+#     # ODS_FILE = "2023-oneandhalfyear-DTR.ods"
+#     # dtr_analyzer = Analyzer(ODS_FILE, root=None)
+#     # result = dtr_analyzer.classify_purpose()
+#     # print(type(result))
+
  
