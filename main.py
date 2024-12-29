@@ -1,6 +1,7 @@
 # from ExpandTable import *
 # from CellProcess import *
 # from GrabContent import *
+import re
 from odf.style import Style
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -45,7 +46,6 @@ def center_window_on_primary(window, width, height, offset="left"):
     window.update()
 
 def main():
-    CACHE_FILE = "cached_ods.pkl"
     # ODS_FILE = "2023-3months-DTR.ods"
     ODS_FILE = "2023-oneandhalfyear-DTR.ods"
     root = tk.Tk()
@@ -56,7 +56,7 @@ def main():
     if custom_ask.result:  # 如果選擇「是」
         root.deiconify()
         center_window_on_primary(root, 600, 200, offset="left")
-        dtr_analyzer = Analyzer(CACHE_FILE, ODS_FILE, root)
+        dtr_analyzer = Analyzer(ODS_FILE, root)
         root.update()  # 更新視窗內容
         root.geometry("600x200")  # 自動調整視窗大小
         root.mainloop()
@@ -64,7 +64,7 @@ def main():
         # dtr_analyzer.plot_odor_trends()
     else:  # 如果選擇「否」
         root.destroy()
-        dtr_analyzer = Analyzer(CACHE_FILE, ODS_FILE, root=None)
+        dtr_analyzer = Analyzer(ODS_FILE, root=None)
         # dtr_analyzer.plot_warehouse()
         # dtr_analyzer.plot_odor_trends()
 

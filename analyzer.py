@@ -1,6 +1,7 @@
 from odf.opendocument import load
 from odf.table import Table, TableRow, TableCell
 from odf.style import TableCellProperties
+import re
 import pandas as pd
 import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
@@ -8,6 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import tkinter as tk
 from tkinter import messagebox
+# from transformers import pipeline
+# import tensorflow as tf
 
 class CustomAskWindow(tk.Toplevel):
     def __init__(self, parent, title, message, position="left"):
@@ -52,7 +55,7 @@ class CustomAskWindow(tk.Toplevel):
         self.destroy()
 
 class Analyzer:
-    def __init__(self, CACHE_FILE, ODS_FILE, root):
+    def __init__(self, ODS_FILE, root):
         if root != None:
             self.root = root
             self.root.title("Average Runs Calculator")
@@ -62,11 +65,11 @@ class Analyzer:
             frame.pack(padx=10, pady=10)  # 設置內外邊距，讓視窗看起來更美觀
             
             
-            tk.Label(frame, text="Enter Start Date (YYYY-MM-DD):").grid(row=0, column=0, padx=10, pady=5)
+            tk.Label(frame, text="Enter Start Date (YYYY/MM/DD):").grid(row=0, column=0, padx=10, pady=5)
             self.date1_entry = tk.Entry(frame, width=20)
             self.date1_entry.grid(row=0, column=1, padx=10, pady=5)
             
-            tk.Label(frame, text="Enter End Date (YYYY-MM-DD):").grid(row=1, column=0, padx=10, pady=5)
+            tk.Label(frame, text="Enter End Date (YYYY/MM/DD):").grid(row=1, column=0, padx=10, pady=5)
             self.date2_entry = tk.Entry(frame, width=20)
             self.date2_entry.grid(row=1, column=1, padx=10, pady=5)
             
@@ -76,8 +79,8 @@ class Analyzer:
             self.result_label = tk.Label(frame, text="Result will be displayed here.", fg="blue")
             self.result_label.grid(row=3, column=0, columnspan=2, pady=10)
         
-        self.cach = CACHE_FILE
         self.ods = ODS_FILE
+        self.purposes_categories = ["high", "Pivot/轉彎", "early", "presentation", "淡味道", "低矮紙箱", "大紙箱", "膠膜或", "窄通道", "提高難度", "編織袋", "scatter", "末端", "輸送帶", "people search", "corner", "others"]
         self.expanded_table = []                                                 ## initial table for expanding by spanned row
         self.full_table = []                                                     ## initial table for expanding the whole table
         self.content_table = []                                                  ## initial tabel for only content we want
@@ -88,11 +91,13 @@ class Analyzer:
         self.flattened_data = []                                                 ## initial blank list for plot the warehouse graph
         self.duty_dates = []                                                     ## initial blank list for duty dates  
         self.duty_times = []                                                     ## initial blank list for duty times
+        self.train_purpose = []
         self.__load_data()                                                       ## load the data and get the expanded table
         self.__expand_column_repeated()                                          ## get the full table 
         self.__get_content_index()
         self.__get_warehouse_statistic()
-        self.__get_train_odor_trend()   
+        self.__get_train_odor_trend()
+        self.__get_train_purpose_statistic()  
     
     def get_cell_from_index(self, row, col):
         print(f"Index:{(row, col)}, Cell Content:{str(self.full_table[row][col])}")
@@ -192,6 +197,27 @@ class Analyzer:
             if child.tagName == "office:annotation":
                 annotation_text = self.__extract_text_from_element(child)
         return cell_content, annotation_text
+    
+    def __annotation_segment_process(self, text):
+        pattern_start = r"^(Run\d+)(\d+\.)"
+        match = re.match(pattern_start, text)
+        segments = []
+        if match:
+            run_part = match.group(1)  # Run1
+            first_item_number = match.group(2)  # 1.
+            segments.append(run_part)
+            segments.append(first_item_number + text[match.end():].split('2.')[0].strip())  # 添加Run1後的段落
+            # 更新剩餘文本
+            text = "2." + text.split('2.')[-1]
+        # 2. 處理後續項次
+        pattern_items = r"(\d+\.)"  # 匹配項次 2., 3., 4.
+        parts = re.split(pattern_items, text)
+        for i in range(1, len(parts), 2):
+            item_number = parts[i].strip()
+            content = parts[i + 1].strip() if i + 1 < len(parts) else ""
+            segments.append(f"{item_number}{content}")
+
+        return segments
     
     def __filter_func(self, cell):
         c, a = self.__get_cell_content_and_annotation(cell)
@@ -376,4 +402,40 @@ class Analyzer:
         plt.xticks(rotation=45)
         plt.tight_layout()  # 自動調整佈局
         plt.show()
+    
+    def __get_train_purpose_statistic(self):
+        for row_index, col_list in self.indices["train"].items():
+            for col_index in col_list:
+                cell = self.content_table[row_index][col_index]
+                _, annotation = self.__get_cell_content_and_annotation(cell)
+                segs = self.__annotation_segment_process(annotation)
+                for seg in segs:
+                    pattern_start = r"^(\d\D+)(訓練目的\s?\:?)"
+                    match = re.match(pattern_start, seg)
+                    if match:
+                        self.train_purpose.append(seg[match.end():])
+                        
+    def classify_purpose(self):
+        self.result = {}
+        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+        threshold = 0.3
+        for pur in self.train_purpose:
+            result = classifier(pur, candidate_labels = self.purposes_categories)
+            top_score = result["scores"][0]
+            top_label = result["labels"][0] 
+            if top_score < threshold:
+                top_label = "others"
+            if top_label in self.result:
+                self.result[top_label] += 1
+            else:
+                self.result[top_label] = 1
+        return self.result          
+
+if __name__ == "__main__":
+    # ODS_FILE = "2023-3months-DTR.ods"
+    # ODS_FILE = "2023-oneandhalfyear-DTR.ods"
+    # dtr_analyzer = Analyzer(ODS_FILE, root=None)
+    # result = dtr_analyzer.classify_purpose()
+    # print(type(result))
+    print("GPU Available: ", tf.config.list_physical_devices('GPU'))
  

@@ -1,19 +1,5 @@
 from CellProcess import *
 
-
-def map_func(cell, train_index, op_index, dnf_index, fr_index, row, col):
-    c, a = get_cell_content_and_annotation(cell)
-    if c == "*":
-        train_index.append(row, col)
-    if c == "●":
-        op_index.append(row, col)
-    if c == "DNF":
-        if not a:
-            dnf_index.append(row, col)
-    if c == "FR":
-        fr_index.append(row, col)
-    return train_index, op_index, dnf_index, fr_index
-
 def filter_func(cell):
     c, a = get_cell_content_and_annotation(cell)
     if c == "*":
@@ -25,6 +11,7 @@ def filter_func(cell):
             return "DNF"
     if c == "FR":
         return "FR"
+
 
 def get_content_index(table):
     indices = {"train": {}, "OP": {}, "DNF": {}, "FR": {}}
@@ -92,6 +79,7 @@ def get_average_runs_for_dates(date1, date2, duty_date, duty_times):
             key += 1
     print(f"The average runs between {date1} and {date2} is {round(sum_runs / count_days, 2)}")
     
+# def get_trend_of_odor(indice, table):
     
         
 
